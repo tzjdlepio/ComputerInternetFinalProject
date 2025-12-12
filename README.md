@@ -15,7 +15,7 @@
 | **即時流量蒐集（Flow / Packet Level）** | 使用`tshark`即時監控 OVS ports 之流量特徵：total packets、ARP packets、unique MACs | ✅  collector.py 已完成、數據會寫入`stats.json` |
 | **規則式異常偵測（ARP / MAC Flood）**   | 偵測 ARP 封包量異常 / MAC 數量突增，自動判定攻擊                                   | ⚠️ ARP Flood 已完成；MAC Flood 可擴充         |
 | **自動控制回應（Drop / Rate-limit）**   | 一旦偵測攻擊，立即使用`ovs-ofctl`注入 flow（例如 drop 來源 MAC）                   | ✅ 已完成，detector.py 會自動下指令             |
-| **Web Dashboard**                       | 顯示流量趨勢、告警狀態                                                             | ⏳ 尚未完成，可以 Flask + Chart.js 構建         |
+| **Web Dashboard**                       | 顯示流量趨勢、告警狀態                                                             | ✅ 已完成（dashboard.py + Flask + Chart.js）    |
 | **Mininet 拓撲（4 hosts + 1 switch）**  | h1\~ h4 + OVS s1 + controller                                                      | ✅ topo\_4h1s.py 已完成且可啟動                 |
 | **封包蒐集程式（tshark）**              | 每秒統計封包資料與 MAC 數量                                                        | ✅ collector.py 已完成                          |
 | **攻擊模擬（ARP/MAC Flood）**           | 用 arping/scapy 產生洪水攻擊                                                       | ⚠️ ARP Flood 已完成（attack\_arp\_flood.sh）  |
@@ -30,8 +30,17 @@
 ├── topo_4h1s.py              </span><span># Mininet 4 hosts + 1 switch 拓撲</span><span>
 ├── collector.py              </span><span># 使用 tshark 即時收集封包特徵</span><span>
 ├── detector.py               </span><span># 規則式偵測 + 自動下 OVS flow 封鎖來源 MAC</span><span>
+├── dashboard.py              </span><span># Web Dashboard 後端（Flask）</span><span>
+├── templates/
+│   └── index.html            </span><span># Dashboard HTML 結構</span><span>
+├── static/
+│   ├── css/
+│   │   └── style.css         </span><span># Dashboard 樣式表</span><span>
+│   └── js/
+│       └── main.js           </span><span># Dashboard JavaScript 邏輯</span><span>
 ├── attack_arp_flood.sh       </span><span># 從 h3 發動 ARP Flood 攻擊</span><span>
 ├── stats.json                </span><span># collector.py 每秒輸出的流量統計資料</span><span>
+├── requirements.txt          </span><span># Python 依賴套件</span><span>
 └── README.md                 </span><span># 專案說明（你正在閱讀的文件）</span><span>
 </span></span></code></div></div></pre>
 
@@ -120,6 +129,24 @@ OVS flow table 會被加入：
 
 ---
 
+## 📘 Terminal 4 — 啟動 Web Dashboard（可選）
+
+<pre class="overflow-visible! px-0!"><div class="contain-inline-size rounded-2xl corner-superellipse/1.1 relative bg-token-sidebar-surface-primary"><div class="overflow-y-auto p-4" dir="ltr"><code class="whitespace-pre! language-bash"><span><span>cd</span><span> FinalProject/
+pip install -r requirements.txt
+</span><span>sudo</span><span> python3 dashboard.py
+</span></span></code></div></div></pre>
+
+開啟瀏覽器訪問 **http://localhost:5000**，即可看到即時監控面板：
+
+- 📈 **即時流量趨勢圖表**：顯示總封包、ARP 封包、不同 MAC 數的歷史趨勢
+- ⚠️ **警報記錄**：即時顯示偵測到的攻擊警報
+- 🚫 **封鎖列表**：查看並管理已封鎖的 MAC 地址
+- ⚙️ **偵測門檻**：顯示當前的偵測閾值設定
+
+> 💡 **注意**：Dashboard 內建了 detector 功能，如果使用 Dashboard 就不需要另外執行 detector.py
+
+---
+
 ## ⚔️ 在 Mininet 中發動攻擊（ARP Flood）
 
 在 Mininet CLI（Terminal 1）中輸入：
@@ -149,15 +176,14 @@ detector → 偵測攻擊並阻擋來源 MAC
 
 ---
 
-# 🔧 待完成 / 可進一步延伸
+# 🔧 可進一步延伸
 
 
-| 項目                                  | 說明                             |
-| ------------------------------------- | -------------------------------- |
-| **Web Dashboard（Flask + Chart.js）** | 即時繪製 traffic trend、警告提示 |
-| **MAC Flood 攻擊腳本（scapy）**       | 用大量 fake MAC 測試另一種攻擊   |
-| **Rate Limiting（非僅 drop）**        | 使用 OVS meter table 實現限速    |
-| **實驗分析與報告撰寫**                | 偵測率 / 反應時間 / 誤判率等統計 |
+| 項目                            | 說明                             |
+| ------------------------------- | -------------------------------- |
+| **MAC Flood 攻擊腳本（scapy）** | 用大量 fake MAC 測試另一種攻擊   |
+| **Rate Limiting（非僅 drop）**  | 使用 OVS meter table 實現限速    |
+| **實驗分析與報告撰寫**          | 偵測率 / 反應時間 / 誤判率等統計 |
 
 ---
 
@@ -166,9 +192,10 @@ detector → 偵測攻擊並阻擋來源 MAC
 * ✔ 使用 Mininet 建立完整 4-hosts + 1-switch 網路環境
 * ✔ 使用 tshark **即時蒐集封包資訊**（total / ARP / MAC）
 * ✔ 自動寫入 stats.json 由其他模組使用
-* ✔ detector 可成功偵測 **ARP Flood**
+* ✔ detector 可成功偵測 **ARP Flood** 與 **MAC Flood**
 * ✔ 一旦攻擊被偵測，能即時對來源 MAC 下 **封鎖（drop）flow**
 * ✔ 已可模擬 ARP Flood 攻擊並成功防禦
 * ✔ 專題核心流程已可完整 demo（Collector → Detector → Mitigation）
+* ✔ **Web Dashboard** 提供即時監控介面（流量圖表、警報記錄、封鎖管理）
 
-Dashboard 與 MAC Flood 是後續可加強但非必須的額外加分項目。
+所有 MVP 目標功能已完成！

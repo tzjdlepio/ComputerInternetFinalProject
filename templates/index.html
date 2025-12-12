@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Assisted Secure Switch Dashboard</title>
+    
+    <!-- 外部資源 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- 自訂樣式 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <div class="logo">🛡️</div>
+                <div>
+                    <h1>AI-Assisted Secure Switch</h1>
+                    <div class="header-subtitle">Mininet + OVS 智慧安全交換機監控面板</div>
+                </div>
+            </div>
+            <div class="status-indicator">
+                <div class="status-dot" id="systemStatus"></div>
+                <span id="statusText">系統監控中...</span>
+            </div>
+        </header>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+            <div class="stat-card" id="totalPktsCard">
+                <div class="stat-icon">📦</div>
+                <div class="stat-label">總封包數</div>
+                <div class="stat-value"><span id="totalPkts">0</span><span class="stat-unit">pkts/s</span></div>
+                <div class="stat-trend normal" id="totalTrend">— 穩定</div>
+            </div>
+            <div class="stat-card" id="arpPktsCard">
+                <div class="stat-icon">🔗</div>
+                <div class="stat-label">ARP 封包數</div>
+                <div class="stat-value"><span id="arpPkts">0</span><span class="stat-unit">pkts/s</span></div>
+                <div class="stat-trend normal" id="arpTrend">門檻: 50</div>
+            </div>
+            <div class="stat-card" id="uniqueMacsCard">
+                <div class="stat-icon">🖥️</div>
+                <div class="stat-label">不同來源 MAC</div>
+                <div class="stat-value"><span id="uniqueMacs">0</span><span class="stat-unit">個</span></div>
+                <div class="stat-trend normal" id="macTrend">門檻: 20</div>
+            </div>
+            <div class="stat-card" id="blockedCard">
+                <div class="stat-icon">🚫</div>
+                <div class="stat-label">已封鎖 MAC</div>
+                <div class="stat-value"><span id="blockedCount">0</span><span class="stat-unit">個</span></div>
+                <div class="stat-trend normal">自動防護中</div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-grid">
+            <!-- Chart -->
+            <div class="chart-container">
+                <div class="chart-header">
+                    <div class="chart-title">📈 即時流量趨勢</div>
+                    <div class="chart-legend">
+                        <div class="legend-item">
+                            <div class="legend-dot" style="background: #06b6d4;"></div>
+                            <span>總封包</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-dot" style="background: #ef4444;"></div>
+                            <span>ARP 封包</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-dot" style="background: #8b5cf6;"></div>
+                            <span>不同 MAC</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="trafficChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- Alerts Panel -->
+                <div class="alerts-panel">
+                    <div class="panel-header">
+                        <div class="panel-title">
+                            ⚠️ 警報記錄
+                            <span class="alert-count" id="alertCount">0</span>
+                        </div>
+                        <button class="clear-btn" onclick="clearAlerts()">清除全部</button>
+                    </div>
+                    <div class="alerts-list" id="alertsList">
+                        <div class="no-alerts">
+                            <div class="no-alerts-icon">✅</div>
+                            <div>目前沒有警報</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Blocked MACs Panel -->
+                <div class="blocked-panel">
+                    <div class="panel-header">
+                        <div class="panel-title">🚫 封鎖列表</div>
+                    </div>
+                    <div class="mac-list" id="blockedList">
+                        <div class="no-blocked">尚無封鎖的 MAC</div>
+                    </div>
+                </div>
+
+                <!-- Thresholds Panel -->
+                <div class="thresholds-panel">
+                    <div class="panel-header">
+                        <div class="panel-title">⚙️ 偵測門檻</div>
+                    </div>
+                    <div class="threshold-row">
+                        <span class="threshold-label">ARP Flood 門檻</span>
+                        <span class="threshold-value" id="thresholdArp">50 pkts/s</span>
+                    </div>
+                    <div class="threshold-row">
+                        <span class="threshold-label">ARP 連續秒數</span>
+                        <span class="threshold-value" id="thresholdArpConsec">3 秒</span>
+                    </div>
+                    <div class="threshold-row">
+                        <span class="threshold-label">MAC Flood 門檻</span>
+                        <span class="threshold-value" id="thresholdMac">20 MACs/s</span>
+                    </div>
+                    <div class="threshold-row">
+                        <span class="threshold-label">MAC 連續秒數</span>
+                        <span class="threshold-value" id="thresholdMacConsec">3 秒</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自訂腳本 -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

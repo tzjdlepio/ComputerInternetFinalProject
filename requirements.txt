@@ -1,0 +1,19 @@
+# AI-Assisted Secure Switch 專案依賴
+# 安裝方式：pip install -r requirements.txt
+
+# Web Dashboard
+flask>=2.3.0
+mininet>=2.3.0b2
+resource
+
+# Mininet 相關（通常系統已內建）
+# mininet  # 需透過 apt 安裝：sudo apt install mininet
+
+# 封包分析（可選，用於進階攻擊模擬）
+# scapy>=2.5.0
+
+# 其他工具（系統層級，需透過 apt 安裝）
+# tshark: sudo apt install tshark
+# arping: sudo apt install arping
+# openvswitch: sudo apt install openvswitch-switch
+
