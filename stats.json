@@ -1,11 +1,11 @@
 {
-  "timestamp_epoch": 1765524702,
-  "timestamp_readable": "2025-12-12 15:31:42",
-  "total_pkts": 5,
-  "arp_pkts": 0,
+  "timestamp_epoch": 1765529152,
+  "timestamp_readable": "2025-12-12 16:45:52",
+  "total_pkts": 6,
+  "arp_pkts": 6,
   "unique_src_macs": 2,
   "src_macs": [
     "00:00:00:00:00:02",
-    "66:24:f2:f1:a6:cc"
+    "00:00:00:00:00:03"
   ]
 }

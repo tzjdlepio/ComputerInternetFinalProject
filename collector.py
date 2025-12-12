@@ -11,48 +11,45 @@ collector.py
         - unique_src_macs : 不同來源 MAC 數量
 
     並將統計結果寫入 stats.json（之後 detector / Web Dashboard 可以拿這份檔案來用）。
-
-前置需求：
-    - 已安裝 tshark（Wireshark 的 CLI）
-        sudo apt-get update
-        sudo apt-get install -y tshark
-
-    - 需以 root / sudo 執行：
-        sudo python3 collector.py
 """
 
 import subprocess
 import json
-import signal
 import sys
 from datetime import datetime
+from pathlib import Path
 
-# 針對你現在這個拓樸 (s1 接 4 個 host)，預設要監聽的介面
+# 你可以依拓樸修改要監聽的 OVS 介面
 INTERFACES = ["s1-eth1", "s1-eth2", "s1-eth3", "s1-eth4"]
 
-# 每秒統計結果會寫到這個檔案
-STATS_JSON_PATH = "stats.json"
+STATS_JSON_PATH = Path("stats.json")
 
 
-def build_tshark_command(interfaces):
+def build_tshark_cmd(interfaces):
     """
-    組合 tshark 指令：
-        tshark -i s1-eth1 -i s1-eth2 ... -T fields \
-               -e frame.time_epoch -e eth.src -e _ws.col.Protocol -l
+    根據指定介面組出 tshark 指令
     """
     cmd = ["tshark"]
 
-    # 多個 -i 接不同介面
-    for iface in interfaces:
-        cmd += ["-i", iface]
+    # -i 介面1 -i 介面2 ...
+    for ifname in interfaces:
+        cmd += ["-i", ifname]
 
-    # 只輸出我們要的欄位：時間戳、來源 MAC、協定名稱
+    # 不要印出一堆額外訊息，只要封包資料
+    cmd += ["-q"]
+
+    # 只輸出我們要的欄位：
+    #   frame.time_epoch   : 時間戳 (unix time, 秒.小數)
+    #   eth.src            : 來源 MAC
+    #   _ws.col.Protocol   : 協定名稱 (不一定可靠，但可用來 debug)
+    #   arp.opcode         : 如果是 ARP 會有值，否則空
     cmd += [
         "-T", "fields",
         "-e", "frame.time_epoch",
         "-e", "eth.src",
         "-e", "_ws.col.Protocol",
-        "-l",   # line buffered，讓我們可以即時讀取輸出
+        "-e", "arp.opcode",
+        "-l",  # line buffered，讓我們可以即時讀取輸出
     ]
 
     # 不另外加 display filter，全部抓下來，在 Python 內自己判斷是不是 ARP
@@ -60,27 +57,31 @@ def build_tshark_command(interfaces):
 
 
 def collector_loop():
-    cmd = build_tshark_command(INTERFACES)
+    """
+    以無限迴圈方式執行 tshark，並且每秒統計一次封包資訊
+    """
 
-    # 使用 sudo 來執行 tshark
-    full_cmd = ["sudo"] + cmd
+    cmd = build_tshark_cmd(INTERFACES)
     print(">>> collector.py 啟動")
-    print(">>> Running:", " ".join(full_cmd))
+    print(">>> Running:", " ".join(cmd))
 
-    # 開子行程執行 tshark，stdout 讓我們一行一行讀
-    proc = subprocess.Popen(
-        full_cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
-        text=True,
-        bufsize=1,  # line buffered
-    )
+    # 啟動 tshark 子行程
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            bufsize=1,  # line-buffered
+        )
+    except FileNotFoundError:
+        print("!!! 找不到 tshark，請先安裝 Wireshark / tshark", file=sys.stderr)
+        sys.exit(1)
 
-    # 儲存目前這一秒的統計
-    current_sec = None
     total_pkts = 0
     arp_pkts = 0
     src_macs = set()
+    current_sec = None  # 目前統計的是哪一「秒」
 
     def flush_stats(sec):
         """
@@ -103,7 +104,6 @@ def collector_loop():
             "src_macs": sorted(src_macs),
         }
 
-        # 不再每秒印 log，改由 detector 來統一顯示
         try:
             with open(STATS_JSON_PATH, "w") as f:
                 json.dump(stats, f, indent=2)
@@ -113,47 +113,32 @@ def collector_loop():
         # 下一秒要重新計數，所以這裡先 reset 數值
         total_pkts = 0
         arp_pkts = 0
-        src_macs.clear()
+        src_macs = set()
 
-    def handle_sigint(signum, frame):
-        """
-        Ctrl+C 時，優雅結束並 flush 最後一批統計
-        """
-        print("\n>>> 收到中斷訊號，正在結束 collector ...")
-        flush_stats(current_sec)
-        proc.terminate()
-        sys.exit(0)
-
-    # 綁定 Ctrl+C handler
-    signal.signal(signal.SIGINT, handle_sigint)
-
-    print(">>> 監聽介面:", ", ".join(INTERFACES))
-    print(">>> 每秒更新 stats.json 一次 (Ctrl+C 結束)\n")
-
-    # 主迴圈：一行一行讀 tshark 輸出
+    # 逐行讀取 tshark 輸出
     for line in proc.stdout:
         line = line.strip()
         if not line:
             continue
 
         parts = line.split("\t")
-        if len(parts) < 1:
-            continue
+        # 期望格式：
+        #   parts[0] = frame.time_epoch
+        #   parts[1] = eth.src
+        #   parts[2] = _ws.col.Protocol
+        #   parts[3] = arp.opcode (如果是 ARP 會有值)
 
-        # parts[0]: frame.time_epoch
         try:
-            ts = float(parts[0])
-        except ValueError:
-            # 如果時間解析失敗就跳過
+            epoch = float(parts[0])
+        except (IndexError, ValueError):
             continue
 
-        sec = int(ts)
+        sec = int(epoch)
 
+        # 如果是新的秒數，先把上一秒 flush 出去
         if current_sec is None:
             current_sec = sec
-
-        # 如果秒數變了，表示上一秒的統計可以輸出
-        if sec != current_sec:
+        elif sec != current_sec:
             flush_stats(current_sec)
             current_sec = sec
 
@@ -164,12 +149,19 @@ def collector_loop():
         if len(parts) >= 2 and parts[1]:
             src_macs.add(parts[1])
 
-        # parts[2]: _ws.col.Protocol (協定名稱，例如 "ARP", "TCP", ...)
+        # parts[2]: _ws.col.Protocol (協定名稱，例如 "ARP", "TCP", ...)，純粹 debug 用
         proto = ""
         if len(parts) >= 3 and parts[2]:
             proto = parts[2].upper()
 
-        if "ARP" in proto:
+        # parts[3]: arp.opcode
+        arp_opcode = ""
+        if len(parts) >= 4 and parts[3]:
+            arp_opcode = parts[3]
+
+        # 只要有 arp.opcode，就一定是 ARP 封包
+        # （為了保險也保留原本的 "ARP" in proto 判斷）
+        if arp_opcode or "ARP" in proto:
             arp_pkts += 1
 
     # 如果 tshark 結束了，最後再 flush 一次
