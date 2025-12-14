@@ -3,7 +3,7 @@
 
 # Web Dashboard
 flask>=2.3.0
-mininet>=2.3.0b2
+mininet
 resource
 
 # Mininet 相關（通常系統已內建）

@@ -23,6 +23,9 @@ THRESHOLD_MAC = 10
 MAC_CONSEC = 2
 HISTORY_SIZE = 60
 
+AI_RESULT_PATH = "ai_result.json"
+
+
 # ========== 全域狀態 ==========
 history_data = deque(maxlen=HISTORY_SIZE)
 alerts = []
@@ -201,6 +204,26 @@ def api_clear_alerts():
     global alerts
     alerts = []
     return jsonify({"success": True})
+
+@app.route("/api/ai_status")
+def api_ai_status():
+    if not os.path.exists(AI_RESULT_PATH):
+        return jsonify({
+            "prediction": "UNKNOWN",
+            "confidence": 0.0,
+            "source": "N/A"
+        })
+
+    try:
+        with open(AI_RESULT_PATH, "r") as f:
+            return jsonify(json.load(f))
+    except:
+        return jsonify({
+            "prediction": "ERROR",
+            "confidence": 0.0,
+            "source": "N/A"
+        })
+
 
 
 # ========== 啟動 ==========

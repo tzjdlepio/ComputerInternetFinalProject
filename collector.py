@@ -11,6 +11,11 @@ import time
 import threading
 from datetime import datetime
 from pathlib import Path
+import csv
+
+STATS_CSV_PATH = Path("stats.csv")
+ATTACK_FLAG_PATH = Path("/tmp/attack_flag")
+
 
 # OVS 介面
 INTERFACES = ["s1-eth1", "s1-eth2", "s1-eth3", "s1-eth4"]
@@ -52,6 +57,32 @@ def write_stats():
                     json.dump(stats, f, indent=2)
             except Exception as e:
                 print(f"!!! 寫入失敗: {e}")
+            
+            label = 0
+            try:
+                if ATTACK_FLAG_PATH.exists():
+                    with open(ATTACK_FLAG_PATH) as f:
+                        label = int(f.read().strip())
+            except:
+                label = 0
+
+            # === 寫入 CSV（for AI training）===
+            arp_ratio = (
+                stats["arp_pkts"] / stats["total_pkts"]
+                if stats["total_pkts"] > 0 else 0
+            )
+
+            with open(STATS_CSV_PATH, "a", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow([
+                    stats["timestamp_epoch"],
+                    stats["timestamp_readable"],
+                    stats["total_pkts"],
+                    stats["arp_pkts"],
+                    stats["unique_src_macs"],
+                    round(arp_ratio, 4),
+                    label
+                ])
             
             # 重置計數
             current_stats["total_pkts"] = 0
@@ -125,6 +156,25 @@ def main():
     print("=" * 50)
     print("🔍 Packet Collector")
     print("=" * 50)
+
+    # === 初始化 CSV（不存在 或 空檔 才寫 header）===
+    need_header = (
+        not STATS_CSV_PATH.exists()
+        or STATS_CSV_PATH.stat().st_size == 0
+    )
+
+    if need_header:
+        with open(STATS_CSV_PATH, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                "timestamp_epoch",
+                "timestamp_readable",
+                "total_pkts",
+                "arp_pkts",
+                "unique_src_macs",
+                "arp_ratio",
+                "label"
+            ])
     
     # 啟動統計寫入執行緒
     writer_thread = threading.Thread(target=write_stats, daemon=True)

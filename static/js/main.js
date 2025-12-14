@@ -331,6 +331,8 @@ function startPolling() {
     setInterval(updateAlerts, 2000);
     setInterval(updateBlocked, 3000);
     setInterval(updateStatus, 1000);
+    setInterval(updateAIStatus, 1000);
+
 }
 
 // ========== 頁面載入時初始化 ==========
@@ -339,3 +341,24 @@ document.addEventListener('DOMContentLoaded', () => {
     startPolling();
 });
 
+// ========== AI 狀態更新 ==========
+async function updateAIStatus() {
+    try {
+        const res = await fetch("/api/ai_status");
+        const ai = await res.json();
+
+        document.getElementById("ai-prediction").textContent = ai.prediction;
+        document.getElementById("ai-confidence").textContent =
+            (ai.confidence * 100).toFixed(1) + "%";
+        document.getElementById("ai-source").textContent = ai.source;
+
+        const box = document.getElementById("ai-status-box");
+        if (ai.prediction === "ARP_FLOOD") {
+            box.className = "ai-box alert";
+        } else {
+            box.className = "ai-box normal";
+        }
+    } catch (e) {
+        console.error("AI status error:", e);
+    }
+}

@@ -2,6 +2,13 @@
 # ARP Flood 攻擊腳本（加強版）
 # 從 h3 對 h2 發動大量 ARP 封包
 
+FLAG_FILE="/tmp/attack_flag"
+
+echo "[*] ARP Flood START"
+echo "1" > $FLAG_FILE
+
+trap "echo 0 > $FLAG_FILE; exit" INT TERM
+
 VICTIM_IP="10.0.0.2"
 IFACE="h3-eth0"
 

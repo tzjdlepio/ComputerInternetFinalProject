@@ -506,3 +506,26 @@ body {
     }
 }
 
+/* ========== AI Status Box ========== */
+.ai-box {
+    background: var(--bg-card);
+    border: 2px solid var(--border-color);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 32px;
+    transition: all 0.3s ease;
+}
+
+.ai-box.normal {
+    border-color: var(--accent-green);
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+}
+
+.ai-box.alert {
+    border-color: var(--accent-red);
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+}
+
+.ai-box h3 {
+    margin-bottom: 12px;
+}
